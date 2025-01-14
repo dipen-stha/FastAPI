@@ -11,9 +11,10 @@ class BaseTimeStampSlugModel(SQLModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    def __init__(self):
+    def __init__(self, **kwargs):  # Need to change this, we need save() like behavior to save slug on instance creation
         if hasattr(self, 'name') and not self.slug:
-            self.slug = slugify(self.name)
+            self.slug = slugify(text=self.name)
+        super().__init__()
 
 
 class CategoryProductPivot(SQLModel, table=True):
