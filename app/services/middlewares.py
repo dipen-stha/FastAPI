@@ -14,7 +14,7 @@ from app.db.models.user import User
 
 class CustomAuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if "login" in request.url.path.split("/"):
+        if "login" or "docs" in request.url.path.split("/"):
             response = await call_next(request)
             return response
         request.state.user = None
