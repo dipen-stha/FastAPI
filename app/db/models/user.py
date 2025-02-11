@@ -14,7 +14,7 @@ class UserRoleLink(SQLModel, table=True):
 class User(SQLModel, table=True):
     __tablename__ = 'users'
 
-    id: int | None = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True, sa_column_kwargs={'autoincrement': True})
     name: str = Field(index=True, max_length=255)
     email: str = Field(max_length=255)
     username: str = Field(max_length=255, unique=True)
@@ -22,12 +22,30 @@ class User(SQLModel, table=True):
     hashed_password: str = Field()
     is_active: bool = Field(default=True)
     is_archived: bool = Field(default=False)
-    roles: list["Role"] = Relationship(back_populates='users', link_model=UserRoleLink)
+    is_superuser: bool = Field(default=False, nullable=False)
+    roles: list['Role'] = Relationship(back_populates='users', link_model=UserRoleLink)
 
+
+class RolePermissionLink(SQLModel, table=True):
+    __tablename__ = 'role_permission'
+
+    role_id: int = Field(foreign_key='roles.id', primary_key=True)
+    permission_id: int = Field(foreign_key='permissions.id', primary_key=True)
 
 class Role(SQLModel, table=True):
     __tablename__ = 'roles'
 
-    id: int | None = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True, sa_column_kwargs={'autoincrement': True})
     name: str = Field(max_length=100)
-    users: list["User"] = Relationship(back_populates='roles', link_model=UserRoleLink)
+    users: list['User'] = Relationship(back_populates='roles', link_model=UserRoleLink)
+    permissions: list['Permission'] = Relationship(back_populates='roles', link_model=RolePermissionLink)
+
+
+class Permission(SQLModel, table=True):
+    __tablename__ = 'permissions'
+
+    id: int | None = Field(default=None, primary_key=True, sa_column_kwargs={'autoincrement': True})
+    name: str = Field(index=True, max_length=255, unique=True)
+    display_name: str = Field(max_length=255)
+    roles: list['Role'] = Relationship(back_populates='permissions', link_model=RolePermissionLink)
+

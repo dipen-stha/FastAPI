@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, Depends
+from fastapi import APIRouter, Response, Depends, Request
 
 from sqlmodel import Session, select
 
@@ -22,7 +22,7 @@ def create_category(category: CategoryInSchema, db: Session = Depends(get_db)):
 
 
 @product_router.get('/categories/get/', response_model=list[CategoryOutSchema])
-async def get_categories(db: Session = Depends(get_db)) -> list[CategoryOutSchema]:
+async def get_categories(request: Request,db: Session = Depends(get_db)) -> list[CategoryOutSchema]:
     statement = select(Category)
     categories = db.exec(statement)
     return categories

@@ -1,7 +1,13 @@
-from pydantic import BaseModel
+from pydantic_core.core_schema import ValidationInfo
+from sqlmodel import Session
+
+from pydantic import BaseModel, field_validator, ValidationError
+
+from app.db.models import User
+
 
 class BaseUser(BaseModel):
-    id: int | None
+    id: int | None =  None
     name: str
     username: str
     email: str
@@ -10,6 +16,9 @@ class BaseUser(BaseModel):
 
 class UserIn(BaseUser):
     hashed_password: str
+
+    class Config:
+        from_attributes = True
 
 
 class UserOut(BaseUser):
@@ -22,3 +31,16 @@ class UserOut(BaseUser):
 class UserLogin(BaseModel):
     username: str
     hashed_password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+
+
+class TokenData(BaseModel):
+    username: str = None
+
+class Role(BaseModel):
+    id: int | None
+    name: str

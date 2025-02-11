@@ -1,45 +1,58 @@
+import json
+
+from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Form, Response, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi.responses import JSONResponse
 
 from sqlmodel import Session
 
 from app.db import crud
 from app.db.session import get_db
-from app.db.models.user import Role
-
-from app.schemas.user import UserLogin, UserIn, UserOut
+from app.db.models.user import Role, User
+from app.schemas.user import UserLogin, UserIn, UserOut, Token, TokenData
+from app.services import auth
 
 auth_router = APIRouter(
-    prefix='/user'
+    prefix='/auth'
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-@auth_router.post('/login')
-def login(username: str = Form(), password: str = Form()):
-    if not username or not password:
-        return Response({
-            "message": "Username or password missing"
+@auth_router.post('/create/')
+def create_user(user: UserIn, db:Session = Depends(get_db)):
+    user = crud.create_user(db, user=user)
+    if user:
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content={
+            'message': 'User created',
+            'data': user.dict()
         })
-    return {
-        "message": "Logged in successfully"
-        }
+    else:
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content="Failed to create user")
 
-@auth_router.post('/create/', response_model=list[UserOut])
-async def create_user(user: UserIn, db:Session = Depends(get_db)):
-    return crud.create_user(db, user=user)
 
-@auth_router.get('/list/')
-async def list_users(db:Session = Depends(get_db)) -> list[UserOut]:
-    users = crud.get_users(db=db)
-    return users
+@auth_router.get('/user/me/', response_model=UserOut)
+def get_users_me(current_user: Annotated[User, Depends(auth.get_current_active_user)]):
+    if current_user is None:
+        raise HTTPException(status_code=400, detail="User not found")
+    return UserOut(**current_user.model_dump())
 
-@auth_router.post('/roles/create/')
-async def create_roles(name: str, db:Session = Depends(get_db)):
-    role = Role(name=name)
-    db.add(role)
-    db.commit()
-    db.refresh(role)
-    return Response({"message": f"Successfully created new role - {role.name}"})
+
+@auth_router.post('/login/token/', response_model=Token)
+async def login(user_login: UserLogin, db:Session = Depends(get_db)):
+    try:
+        user = auth.authenticate_user(user_login, db)
+        if not user.is_active or user.is_archived:
+            raise HTTPException(status_code=400, detail="Inactive user")
+        return Token(
+            access_token=auth.create_access_token(
+                data={
+                    'user_id': user.id,
+                    'username': user.username
+                },
+                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            )
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
