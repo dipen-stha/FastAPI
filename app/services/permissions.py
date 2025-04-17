@@ -7,7 +7,7 @@ from app.db.models import User
 
 class PermissionChecker:
     def __init__(self, required_permissions: list[str]):
-        self.required_permissions = required_permissions
+        self.required_permissions = set(required_permissions)
 
     def __call__(self, user: Annotated[User, Depends(auth.get_current_user)]):
         if not user.is_superuser:
@@ -15,7 +15,7 @@ class PermissionChecker:
             for role in user.roles:
                 user_permission.update([p.name for p in role.permissions])
 
-            if not any(perm in user_permission for perm in self.required_permissions):
+            if not self.required_permissions.intersection(user_permission):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="You do not have permission to perform this action",

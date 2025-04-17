@@ -73,7 +73,6 @@ async def create_role(role: RoleIn, db:Session = Depends(get_db)) -> Role:
 
 def assign_role(user_role: UserRoleLinkSchema, db:Session):
     try:
-        print('ssds')
         with db.begin():
             statement = delete(RolePermissionLink).where(RolePermissionLink.role_id == user_role.user_id)
             db.exec(statement)

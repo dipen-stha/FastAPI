@@ -5,10 +5,9 @@ from pydantic import BaseModel
 class BaseSchema(BaseModel):
     name: str
 
-    slug: str
-
 class BaseGetSchema(BaseSchema):
     id: int
+    slug: str
     created_at: datetime
     updated_at: datetime
 

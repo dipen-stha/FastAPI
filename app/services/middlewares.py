@@ -15,17 +15,22 @@ from app.db.models.user import User
 class CustomAuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # if "login" or "docs" in request.url.path.split("/"):
-        if any(part in request.url.path.split("/") for part in ["login", "logout", "docs"]):
+        try:
+            if any(part in request.url.path.split("/") for part in ["login", "logout", "docs"]):
+                response = await call_next(request)
+                return response
+            request.state.user = None
+            db = next(get_db())
+            auth_header = request.headers.get("Authorization")
+            if not auth_header:
+                return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"message": "Unauthorized"})
+            token = auth_header.split(" ")[1]
+            user = await get_current_user(token, db)
+            if user:
+                request.state.user = user
             response = await call_next(request)
             return response
-        request.state.user = None
-        db = next(get_db())
-        auth_header = request.headers.get("Authorization")
-        if not auth_header:
-            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"message": "Unauthorized"})
-        token = auth_header.split(" ")[1]
-        user = await get_current_user(token, db)
-        if user:
-            request.state.user = user
-        response = await call_next(request)
-        return response
+        except HTTPException as exc:
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"message": str(exc)})
+        except Exception as exc:
+            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exc)})
