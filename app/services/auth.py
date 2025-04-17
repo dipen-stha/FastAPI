@@ -34,7 +34,7 @@ def get_password_hash(password):
 
 def authenticate_user(user_login: UserLogin, db: Session) -> User | None:
     user = crud.get_user_by_username(db, user_login.username)
-    if not user or not verify_password(user_login.hashed_password, user.hashed_password):
+    if not user or not verify_password(user_login.password, user.hashed_password):
         return None
     return user
 

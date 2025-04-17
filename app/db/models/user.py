@@ -36,7 +36,8 @@ class Role(SQLModel, table=True):
     __tablename__ = 'roles'
 
     id: int | None = Field(default=None, primary_key=True, sa_column_kwargs={'autoincrement': True})
-    name: str = Field(max_length=100)
+    name: str = Field(max_length=100, unique=True)
+    display_name: str = Field(max_length=255, default=None, nullable=True)
     users: list['User'] = Relationship(back_populates='roles', link_model=UserRoleLink)
     permissions: list['Permission'] = Relationship(back_populates='roles', link_model=RolePermissionLink)
 

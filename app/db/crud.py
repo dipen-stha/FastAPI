@@ -4,8 +4,8 @@ from slugify import slugify
 from sqlmodel import Session, select, delete
 from starlette.responses import JSONResponse
 
-from app.db.models.user import User, Role, Permission, RolePermissionLink
-from app.schemas.user import UserIn, UserOut, RoleIn, PermissionIn
+from app.db.models.user import User, Role, Permission, RolePermissionLink, UserRoleLink
+from app.schemas.user import UserIn, UserOut, RoleIn, PermissionIn, UserRoleLinkSchema
 from app.db.session import get_db
 from app.services.auth import get_password_hash
 
@@ -38,7 +38,7 @@ def get_users( user_id: int | None = None, db:Session = Depends(get_db)) -> User
         results = db.exec(statement).all()
         return results
 
-def create_permission(permission: PermissionIn, db:Session = Depends(get_db)) -> Permission:
+async def create_permission(permission: PermissionIn, db:Session = Depends(get_db)) -> Permission:
     data = permission.model_dump()
     data['name'] = slugify(data.get('display_name'))
     permission_instance = Permission(**data)
@@ -46,7 +46,7 @@ def create_permission(permission: PermissionIn, db:Session = Depends(get_db)) ->
     db.commit()
     return permission_instance
 
-def set_role_permissions(role_id: int, permission_ids: list[int], db:Session = Depends(get_db)):
+async def set_role_permissions(role_id: int, permission_ids: list[int], db:Session = Depends(get_db)):
     statement = delete(RolePermissionLink).where(RolePermissionLink.role_id == role_id)
     db.exec(statement)
     db.flush()
@@ -54,7 +54,7 @@ def set_role_permissions(role_id: int, permission_ids: list[int], db:Session = D
     new_link_instances = [RolePermissionLink(role_id=role_id, permission_id=perm_id) for perm_id in permission_ids]
     db.add_all(new_link_instances)
 
-def create_role(role: RoleIn, db:Session = Depends(get_db)) -> Role:
+async def create_role(role: RoleIn, db:Session = Depends(get_db)) -> Role:
     try:
         with db.begin():
             role_data = role.model_dump()
@@ -63,9 +63,22 @@ def create_role(role: RoleIn, db:Session = Depends(get_db)) -> Role:
             db.add(role_instance)
             db.flush()
             db.refresh(role_instance)
-            set_role_permissions(role_instance.id, permissions, db)
+            await set_role_permissions(role_instance.id, permissions, db)
             return role_instance
 
     except Exception as e:
         db.rollback()
         raise e
+
+
+def assign_role(user_role: UserRoleLinkSchema, db:Session):
+    try:
+        print('ssds')
+        with db.begin():
+            statement = delete(RolePermissionLink).where(RolePermissionLink.role_id == user_role.user_id)
+            db.exec(statement)
+
+            user_roles = [UserRoleLink(user_id=user_role.user_id, role_id=role_id) for role_id in user_role.role_ids]
+            db.add_all(user_roles)
+    except Exception as e:
+        db.rollback()
