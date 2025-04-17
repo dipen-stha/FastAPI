@@ -6,7 +6,7 @@ from app.db.init_db import init_db
 from app.routers.auth_routes import auth_router
 from app.routers.product_routes import product_router
 from app.routers.users import user_router
-from app.services.middlewares import CustomAuthenticationMiddleware
+from app.services.middlewares import CustomAuthenticationMiddleware, ProfilerMiddleware
 
 app = FastAPI()
 
@@ -26,6 +26,8 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(ProfilerMiddleware, profiling_enabled=True)
+
 app.include_router(auth_router)
 app.include_router(product_router)
 app.include_router(user_router)

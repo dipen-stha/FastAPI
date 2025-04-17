@@ -1,6 +1,8 @@
-from typing import Annotated
+from typing import Annotated, Callable
 
-from fastapi import Request, Response, Depends, status, HTTPException
+from fastapi import Request, Response, Depends, status, HTTPException, FastAPI
+from pyinstrument import Profiler
+from pyinstrument.renderers import HTMLRenderer, SpeedscopeRenderer
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
@@ -34,3 +36,33 @@ class CustomAuthenticationMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"message": str(exc)})
         except Exception as exc:
             return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exc)})
+
+
+class ProfilerMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app: FastAPI, profiling_enabled: bool = False):
+        super().__init__(app)
+        self.profiling_enabled = profiling_enabled
+        self.profile_type_to_ext = {
+            "html": "html",
+            "speedscope": "speedscope.json"
+        }
+        self.profile_type_to_renderer = {
+            "html": HTMLRenderer,
+            "speedscope": SpeedscopeRenderer
+        }
+
+        async def dispatch(self, request: Request, call_next: Callable):
+            if not self.profiling_enabled or not request.query_params.get('profile', False):
+                return await call_next(request)
+            profile_type = request.query_params.get('profile_format', 'speedscope')
+            extension = self.profile_type_to_ext.get(profile_type, 'speedscope.json')
+            renderer_class = self.profile_type_to_renderer.get(profile_type, SpeedscopeRenderer)
+            with Profiler(interval=0.001, async_mode="enabled") as profiler:
+                response = await call_next(request)
+
+            # Write profiling results to file
+            output_file = f"profile.{extension}"
+            renderer = renderer_class()
+            with open(output_file, "w") as out:
+                out.write(profiler.output(renderer=renderer))
+            return response
