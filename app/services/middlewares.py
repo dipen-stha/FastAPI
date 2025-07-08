@@ -18,7 +18,7 @@ class CustomAuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # if "login" or "docs" in request.url.path.split("/"):
         try:
-            if any(part in request.url.path.split("/") for part in ["login", "logout", "docs"]):
+            if any(part in request.url.path.split("/") for part in ["login", "logout", "docs", "openapi.json"]):
                 response = await call_next(request)
                 return response
             request.state.user = None
@@ -51,18 +51,18 @@ class ProfilerMiddleware(BaseHTTPMiddleware):
             "speedscope": SpeedscopeRenderer
         }
 
-        async def dispatch(self, request: Request, call_next: Callable):
-            if not self.profiling_enabled or not request.query_params.get('profile', False):
-                return await call_next(request)
-            profile_type = request.query_params.get('profile_format', 'speedscope')
-            extension = self.profile_type_to_ext.get(profile_type, 'speedscope.json')
-            renderer_class = self.profile_type_to_renderer.get(profile_type, SpeedscopeRenderer)
-            with Profiler(interval=0.001, async_mode="enabled") as profiler:
-                response = await call_next(request)
+    async def dispatch(self, request: Request, call_next: Callable):
+        if not self.profiling_enabled or not request.query_params.get('profile', False):
+            return await call_next(request)
+        profile_type = request.query_params.get('profile_format', 'speedscope')
+        extension = self.profile_type_to_ext.get(profile_type, 'speedscope.json')
+        renderer_class = self.profile_type_to_renderer.get(profile_type, SpeedscopeRenderer)
+        with Profiler(interval=0.001, async_mode="enabled") as profiler:
+            response = await call_next(request)
 
-            # Write profiling results to file
-            output_file = f"profile.{extension}"
-            renderer = renderer_class()
-            with open(output_file, "w") as out:
-                out.write(profiler.output(renderer=renderer))
-            return response
+        # Write profiling results to file
+        output_file = f"profile.{extension}"
+        renderer = renderer_class()
+        with open(output_file, "w") as out:
+            out.write(profiler.output(renderer=renderer))
+        return response

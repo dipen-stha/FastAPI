@@ -1,5 +1,6 @@
-from enum import unique
+from enum import unique, Enum
 from typing import Annotated
+from datetime import date
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 
@@ -23,7 +24,9 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     is_archived: bool = Field(default=False)
     is_superuser: bool = Field(default=False, nullable=False)
+
     roles: list['Role'] = Relationship(back_populates='users', link_model=UserRoleLink)
+    profile: "Profile" or None = Relationship(back_populates="user", sa_relationship_kwargs={'uselist': False})
 
 
 class RolePermissionLink(SQLModel, table=True):
@@ -50,3 +53,18 @@ class Permission(SQLModel, table=True):
     display_name: str = Field(max_length=255)
     roles: list['Role'] = Relationship(back_populates='permissions', link_model=RolePermissionLink)
 
+
+class Profile(SQLModel, table=True):
+    __tablename__ = 'profile'
+
+    class GenderEnum(str, Enum):
+        MALE = "Male"
+        FEMALE = "Female"
+
+    id: int | None = Field(default=None, primary_key=True)
+    gender: str | None = Field()
+    dob: date | None = Field()
+
+    user_id: int | None = Field(default=None, foreign_key="users.id")
+    user: User | None = Relationship(back_populates="profile")
+    address: str | None = Field(default=None)
