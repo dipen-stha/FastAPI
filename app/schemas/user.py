@@ -1,9 +1,9 @@
-from pydantic_core.core_schema import ValidationInfo
-from sqlmodel import Session
+from datetime import date
 
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import BaseModel, field_validator, ValidationError, EmailStr
 
 from app.db.models import User
+from app.utils.enum.users import GenderEnum
 
 
 class BaseUser(BaseModel):
@@ -11,7 +11,7 @@ class BaseUser(BaseModel):
     name: str
     username: str
     email: str
-    age: int
+    age: int | None
 
 
 class UserIn(BaseUser):
@@ -101,3 +101,23 @@ class UserDetailSchema(UserOut):
            permissions=list(permissions),
        )
 
+
+class BaseProfile(BaseModel):
+    gender: GenderEnum | None
+    dob: date | None
+    address: str | None
+
+
+class ProfileIn(BaseProfile):
+    user: int
+
+class ProfileInPatch(BaseProfile):
+    pass
+
+
+class ProfileOut(BaseProfile):
+    id: int | None
+    user: UserOut
+
+    class Config:
+        from_attributes = True

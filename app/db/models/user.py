@@ -6,6 +6,9 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 
 from sqlmodel import Field, Session, SQLModel, Relationship
 
+from app.utils.enum.users import GenderEnum
+
+
 class UserRoleLink(SQLModel, table=True):
     __tablename__ = 'user_role'
 
@@ -57,12 +60,8 @@ class Permission(SQLModel, table=True):
 class Profile(SQLModel, table=True):
     __tablename__ = 'profile'
 
-    class GenderEnum(str, Enum):
-        MALE = "Male"
-        FEMALE = "Female"
-
     id: int | None = Field(default=None, primary_key=True)
-    gender: str | None = Field()
+    gender: GenderEnum | None = Field()
     dob: date | None = Field()
 
     user_id: int | None = Field(default=None, foreign_key="users.id")

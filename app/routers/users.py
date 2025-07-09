@@ -2,16 +2,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, HTTPException, status, Request
 from fastapi.exceptions import ResponseValidationError
+from fastapi.encoders import jsonable_encoder
 
 from sqlmodel import Session, select
 from starlette.responses import JSONResponse
 
 from app.db import crud
-from app.db.crud import assign_role
+from app.db.crud import assign_role, create_user_profile, update_user_profile
 from app.db.session import get_db
 from app.schemas.user import UserOut, RoleIn, PermissionIn, UserRoleLinkSchema, UserDetailSchema, UserRoleSchema, \
-    RoleOut
+    RoleOut, ProfileIn, ProfileOut, ProfileInPatch
 from app.db.models.user import User, Role
+from app.services.auth import get_current_user
 from app.utils.mixins import CustomResponse
 
 user_router = APIRouter(
@@ -73,7 +75,18 @@ def user_roles(user_id: int, db: Annotated[Session, Depends(get_db)]) -> UserRol
 
 
 @user_router.get('/self/me/')
-async def get_self(request: Request, db:Annotated[Session, Depends(get_db)]) -> JSONResponse:
-    user = request.state.user
-    user_details = UserDetailSchema.from_orm(user)
+async def get_self(request: Request, current_user: Annotated[User, Depends(get_current_user)]) -> JSONResponse:
+    user_details = UserDetailSchema.from_orm(current_user)
     return JSONResponse(status_code=status.HTTP_200_OK, content={**user_details.model_dump()})
+
+@user_router.post("/profile/create/")
+async def create_profile(profile: ProfileIn, db: Session = Depends(get_db)) -> JSONResponse:
+    user_profile = await create_user_profile(profile, db)
+    user_profile_data = ProfileOut.model_validate(user_profile)
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content={"data": jsonable_encoder(user_profile_data.model_dump())})
+
+@user_router.patch("/profile/update/{profile_id}/")
+async def update_profile(profile_id: int, profile: ProfileInPatch, db: Session = Depends(get_db)) -> JSONResponse:
+    updated_instance = await update_user_profile(profile_id, profile, db)
+    updated_profile_data = ProfileOut.model_validate(updated_instance)
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"data": jsonable_encoder(updated_profile_data.model_dump())})

@@ -1,8 +1,6 @@
-from pydantic import EmailStr
-
 from app.db.models import User
 from app.db.session import get_db
-from app.services.auth import get_password_hash
+from app.utils.validators import validate_email
 
 def create_superuser():
     name = input("Enter name: ")
@@ -14,13 +12,14 @@ def create_superuser():
     if not password == repeat_password:
         print("Passwords do not match")
         return
-    if not EmailStr.validate(email):
+    if not validate_email(email):
         print("Enter a valid email")
         return
 
+    from app.utils.helpers import get_password_hash
     hashed_password = get_password_hash(password)
     user = User(name=name, username=username, email=email, hashed_password=hashed_password, is_superuser=True)
-    session = get_db()
+    session = next(get_db())
     session.add(user)
     session.commit()
     session.refresh(user)

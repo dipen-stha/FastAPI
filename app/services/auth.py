@@ -17,6 +17,7 @@ from app.db import crud
 from app.db.models import User
 from app.db.session import get_db
 from app.schemas.user import UserLogin, TokenData
+from app.utils.helpers import verify_password
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
@@ -25,12 +26,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"http:localhost:8080/auth/token")
 
 # Password hashing utility
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 def authenticate_user(user_login: UserLogin, db: Session) -> User | None:
     user = crud.get_user_by_username(db, user_login.username)
