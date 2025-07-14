@@ -1,7 +1,9 @@
 from datetime import date
 
+from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.db.models import BaseTimeStampSlugModel
 from app.utils.enum.users import GenderEnum
 
 
@@ -31,6 +33,7 @@ class User(SQLModel, table=True):
     profile: "Profile" or None = Relationship(
         back_populates="user", sa_relationship_kwargs={"uselist": False}
     )
+    user_cart: list["UserCart"] or None = Relationship(back_populates="user")
 
 
 class RolePermissionLink(SQLModel, table=True):
@@ -71,9 +74,24 @@ class Profile(SQLModel, table=True):
     __tablename__ = "profile"
 
     id: int | None = Field(default=None, primary_key=True)
-    gender: GenderEnum | None = Field()
+    gender: GenderEnum | None = Field(
+        sa_column=Column(
+            Enum(GenderEnum, name="genderenum", create_type=False), nullable=True
+        )
+    )
     dob: date | None = Field()
 
     user_id: int | None = Field(default=None, foreign_key="users.id")
     user: User | None = Relationship(back_populates="profile")
     address: str | None = Field(default=None)
+
+
+class UserCart(BaseTimeStampSlugModel, table=True):
+    # from app.db.models import User
+    __tablename__ = "user_carts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    product_id: int = Field(foreign_key="products.id")
+    user: "User" = Relationship(back_populates="user_cart")
+    quantity: int = Field()

@@ -1,10 +1,17 @@
 from typing import Annotated
 
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlmodel import select, Session
 from starlette.responses import JSONResponse
 
 from app.db import crud
-from app.db.crud import assign_role, create_user_profile, update_user_profile
+from app.db.crud import (
+    assign_role,
+    create_user_cart,
+    create_user_profile,
+    update_user_cart,
+    update_user_profile,
+)
 from app.db.models.user import Role, User
 from app.db.session import get_db
 from app.schemas.user import (
@@ -14,6 +21,7 @@ from app.schemas.user import (
     ProfileOut,
     RoleIn,
     RoleOut,
+    UserCartIn,
     UserDetailSchema,
     UserOut,
     UserRoleLinkSchema,
@@ -49,6 +57,11 @@ async def create_permission(
         )
     except HTTPException as err:
         return JSONResponse(status_code=err.status_code, content={"error": err.detail})
+    except IntegrityError:
+        return JSONResponse(
+            content={"message": "Permission with this name already exists"},
+            status_code=status.HTTP_409_CONFLICT,
+        )
 
 
 @user_router.post("/roles/create/")
@@ -76,10 +89,20 @@ def fetch_roles(db: Annotated[Session, Depends(get_db)]):
 async def assign_roles(
     user_role: UserRoleLinkSchema, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
-    assign_role(user_role, db)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK, content="Role assigned to the user"
-    )
+    try:
+        _, errors = assign_role(user_role, db)
+        if errors:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST, content={"errors": errors}
+            )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, content="Role assigned to the user"
+        )
+    except NoResultFound:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"error": "User with given ID found"},
+        )
 
 
 @user_router.get("/user-roles/{user_id}/", response_model=UserRoleSchema)
@@ -133,3 +156,31 @@ async def update_profile(
         status_code=status.HTTP_200_OK,
         content={"data": jsonable_encoder(updated_profile_data.model_dump())},
     )
+
+
+@user_router.patch("/cart/create/")
+def user_cart_create(
+    user_cart: UserCartIn, db: Annotated[Session, Depends(get_db)]
+) -> JSONResponse:
+    user_cart_instance = create_user_cart(user_cart, db)
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={"data": user_cart_instance.model_dump()},
+    )
+
+
+@user_router.patch("/cart/update/{user_cart_id}/")
+def user_cart_update(
+    user_cart_id: int, user_cart: UserCartIn, db: Annotated[Session, Depends(get_db)]
+) -> JSONResponse:
+    try:
+        updated_user_cart_data = update_user_cart(user_cart_id, user_cart, db)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"data": updated_user_cart_data.model_dump()},
+        )
+    except NoResultFound:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"error": "User with given ID found"},
+        )

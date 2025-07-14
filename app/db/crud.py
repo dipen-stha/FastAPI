@@ -1,4 +1,5 @@
 from slugify import slugify
+from sqlalchemy.exc import NoResultFound
 from sqlmodel import delete, select, Session
 
 from app.db.models.user import (
@@ -7,14 +8,19 @@ from app.db.models.user import (
     Role,
     RolePermissionLink,
     User,
+    UserCart,
     UserRoleLink,
 )
 from app.schemas.user import (
     PermissionIn,
+    PermissionOut,
     ProfileIn,
     ProfileInPatch,
     ProfileOut,
     RoleIn,
+    RoleOut,
+    UserCartIn,
+    UserCartOut,
     UserIn,
     UserOut,
     UserRoleLinkSchema,
@@ -60,13 +66,14 @@ def get_users(
         return results
 
 
-async def create_permission(permission: PermissionIn, db: Session) -> Permission:
+async def create_permission(permission: PermissionIn, db: Session) -> PermissionOut:
     data = permission.model_dump()
     data["name"] = slugify(data.get("display_name"))
     permission_instance = Permission(**data)
     db.add(permission_instance)
     db.commit()
-    return permission_instance
+    permission = PermissionOut.model_validate(permission_instance)
+    return permission
 
 
 async def set_role_permissions(role_id: int, permission_ids: list[int], db: Session):
@@ -81,7 +88,7 @@ async def set_role_permissions(role_id: int, permission_ids: list[int], db: Sess
     db.add_all(new_link_instances)
 
 
-async def create_role(role: RoleIn, db: Session) -> Role:
+async def create_role(role: RoleIn, db: Session) -> RoleOut:
     try:
         with db.begin():
             role_data = role.model_dump()
@@ -91,15 +98,26 @@ async def create_role(role: RoleIn, db: Session) -> Role:
             db.flush()
             db.refresh(role_instance)
             await set_role_permissions(role_instance.id, permissions, db)
-            return role_instance
+            role = RoleOut.model_validate(role_instance)
+            return role
 
     except Exception as e:
         db.rollback()
         raise e
 
 
-def assign_role(user_role: UserRoleLinkSchema, db: Session):
+def assign_role(user_role: UserRoleLinkSchema, db: Session) -> (list, dict):
+    errors = {}
+    user_roles = []
     try:
+        user = db.exec(select(User).where(User.id == user_role.user_id)).first()
+        existing_roles = set(db.exec(select(Role.id)).all())
+        roles = set(user_role.role_ids)
+        non_existing = roles - existing_roles
+        if not user:
+            errors["users"] = f"User with pk {user_role.user_id} not found" f""
+        if non_existing:
+            errors["roles"] = f"Roles with pks {list(non_existing)} Not Found"
         with db.begin():
             statement = delete(RolePermissionLink).where(
                 RolePermissionLink.role_id == user_role.user_id
@@ -107,12 +125,14 @@ def assign_role(user_role: UserRoleLinkSchema, db: Session):
             db.exec(statement)
 
             user_roles = [
-                UserRoleLink(user_id=user_role.user_id, role_id=role_id)
+                UserRoleLink(user_id=user.id, role_id=role_id)
                 for role_id in user_role.role_ids
             ]
             db.add_all(user_roles)
+            db.commit()
     except Exception:
         db.rollback()
+    return user_roles, errors
 
 
 async def create_user_profile(
@@ -155,3 +175,27 @@ async def update_user_profile(
     db.commit()
     db.refresh(updated_profile_instance)
     return updated_profile_instance
+
+
+def create_user_cart(user_cart: UserCartIn, db: Session) -> UserCartOut:
+    user_cart_instance = UserCart(**user_cart.model_dump())
+    db.add(user_cart_instance)
+    db.commit()
+    db.refresh(user_cart_instance)
+    user_cart = UserCartOut.model_validate(user_cart_instance)
+    return user_cart
+
+
+def update_user_cart(
+    user_cart_id: int, user_cart: UserCartIn, db: Session
+) -> UserCartOut:
+    user_cart_instance: UserCart = db.exec(
+        select(UserCart).where(UserCart.user_id == user_cart_id)
+    ).first()
+    if not user_cart_instance:
+        raise NoResultFound
+    updated_instance = update_model_instance(user_cart, user_cart_instance)
+    db.add(updated_instance)
+    db.commit()
+    updated_user_cart = UserCartOut.model_validate(updated_instance)
+    return updated_user_cart

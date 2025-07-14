@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel
 
 from app.db.models import User
+from app.schemas.products import ProductOutSchema
 from app.utils.enum.users import GenderEnum
 
 
@@ -53,6 +54,7 @@ class PermissionIn(BasePermission):
 
 
 class PermissionOut(BaseModel):
+    id: int
     name: str
 
     class Config:
@@ -67,11 +69,11 @@ class BaseRole(BaseModel):
 
 class RoleIn(BaseRole):
     id: int | None = None
-    permissions: list[int] | None
+    permissions: list[int] | list[None]
 
 
 class RoleOut(BaseRole):
-    permissions: list[PermissionOut] | None
+    permissions: list[PermissionOut] | list[None]
 
     class Config:
         from_attributes = True
@@ -125,6 +127,25 @@ class ProfileInPatch(BaseProfile):
 class ProfileOut(BaseProfile):
     id: int | None
     user: UserOut
+
+    class Config:
+        from_attributes = True
+
+
+class BaseUserCart(BaseModel):
+    id: int | None
+
+
+class UserCartIn(BaseUserCart):
+    user_id: int
+    product_id: int
+    quantity: int
+
+
+class UserCartOut(BaseUserCart):
+    user: UserOut
+    product: ProductOutSchema
+    quantity: int
 
     class Config:
         from_attributes = True
