@@ -2,6 +2,7 @@ from app.db.models import User
 from app.db.session import get_db
 from app.utils.validators import validate_email
 
+
 def create_superuser():
     name = input("Enter name: ")
     username = input("Enter username: ")
@@ -17,8 +18,15 @@ def create_superuser():
         return
 
     from app.utils.helpers import get_password_hash
+
     hashed_password = get_password_hash(password)
-    user = User(name=name, username=username, email=email, hashed_password=hashed_password, is_superuser=True)
+    user = User(
+        name=name,
+        username=username,
+        email=email,
+        hashed_password=hashed_password,
+        is_superuser=True,
+    )
     session = next(get_db())
     session.add(user)
     session.commit()
@@ -29,4 +37,3 @@ def create_superuser():
 
 if __name__ == "__main__":
     create_superuser()
-

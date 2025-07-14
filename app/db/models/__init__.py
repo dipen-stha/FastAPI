@@ -1,2 +1,2 @@
-from .product import  *
+from .product import *
 from .user import *

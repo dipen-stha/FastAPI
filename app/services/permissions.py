@@ -1,9 +1,14 @@
 from typing import Annotated
 
-from fastapi import Depends, status, HTTPException
-
-from app.services import auth
 from app.db.models import User
+from app.services import auth
+
+from fastapi import Depends, HTTPException, status
+
+
+def get_required_permissions(permissions: list[str]):
+    return PermissionChecker(required_permissions=permissions)
+
 
 class PermissionChecker:
     def __init__(self, required_permissions: list[str]):
@@ -35,5 +40,6 @@ class RoleChecker:
                     detail="You do not have permission to perform this action",
                 )
         return user
+
 
 super_role_required = RoleChecker(required_roles=["admin"])
