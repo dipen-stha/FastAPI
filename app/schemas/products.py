@@ -16,7 +16,7 @@ class ProductInSchema(BaseSchema):
 
 
 class ProductOutSchema(BaseGetSchema):
-    pass
+    in_stock: bool | None
 
     class Config:
         from_attributes = True

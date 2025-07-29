@@ -1,17 +1,20 @@
 from typing import Annotated
 
 from sqlmodel import select, Session
+from sqlalchemy.orm import selectinload
 from starlette import status
 from starlette.responses import JSONResponse
 
-from app.db.models.product import Category
+from app.db.crud import get_all_products
+from app.db.models.product import Category, Product
 from app.db.models.user import User
 from app.db.session import get_db
+from app.schemas.filters import ProductFilter
 from app.schemas.products import CategoryInSchema, CategoryOutSchema
 from app.services.permissions import get_required_permissions
 from app.utils.model_utilty import generate_slug, update_model_instance
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 
 product_router = APIRouter(prefix="/product")
@@ -71,4 +74,21 @@ async def update_category(
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
+        )
+
+
+@product_router.get("/get/all/")
+def fetch_all(
+    db: Annotated[Session, Depends(get_db)], filter_query: Annotated[Query, Depends(ProductFilter)]
+) -> JSONResponse:
+    try:
+        products = get_all_products(db, filter_query)
+        products_data = [product.model_dump() for product in products]
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, content={"products": products_data}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"There was an error - {e}"},
         )

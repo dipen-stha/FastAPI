@@ -44,3 +44,4 @@ class Product(BaseTimeStampSlugModel, table=True):
     )
     price: int | None = Field(default=0)
     user_carts: list["UserCart"] = Relationship(back_populates="product")
+    total_quantity: int | None = Field(default=0)

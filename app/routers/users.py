@@ -17,7 +17,6 @@ from app.db.models import Product
 from app.db.models.user import Role, User, UserCart
 from app.db.session import get_db
 from app.schemas.user import (
-    BaseFilter,
     PermissionIn,
     ProfileIn,
     ProfileInPatch,
@@ -31,6 +30,7 @@ from app.schemas.user import (
     UserRoleLinkSchema,
     UserRoleSchema,
 )
+from app.schemas.filters import BaseFilter
 from app.services.auth import get_current_user
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status

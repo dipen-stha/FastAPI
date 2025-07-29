@@ -1,8 +1,11 @@
+from typing import Annotated
+
 from pydantic_core import ValidationError
 from slugify import slugify
 from sqlalchemy.exc import NoResultFound
-from sqlmodel import delete, select, Session
+from sqlmodel import delete, select, Session, case, and_
 
+from app.db.models import Product
 from app.db.models.user import (
     Permission,
     Profile,
@@ -12,6 +15,8 @@ from app.db.models.user import (
     UserCart,
     UserRoleLink,
 )
+from app.schemas.filters import ProductFilter
+from app.schemas.products import ProductOutSchema
 from app.schemas.user import (
     PermissionIn,
     PermissionOut,
@@ -29,7 +34,7 @@ from app.schemas.user import (
 from app.utils.helpers import get_password_hash
 from app.utils.model_utilty import update_model_instance
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Query, Depends
 
 
 def validate_username(db: Session, username: str):
@@ -207,3 +212,41 @@ def update_user_cart(
     db.commit()
     updated_user_cart = UserCartOut.model_validate(updated_instance)
     return updated_user_cart
+
+
+def get_all_products(
+    db: Session,
+    filter_query: Annotated[Query, Depends(ProductFilter)],
+) -> list[ProductOutSchema]:
+    filters = []
+    in_stock_filter = filter_query.in_stock
+    name_filter = filter_query.name
+    price_filter = filter_query.price
+    if in_stock_filter:
+        filters.append(Product.total_quantity > 0)
+    if name_filter:
+        filters.append(Product.name.ilike(f"%{name_filter}%"))
+    if price_filter:
+        filters.append(Product.price <= price_filter)
+    statement = (
+        select(
+            Product,
+            case((Product.total_quantity >= 1, True), else_=False).label("in_stock"),
+        )
+        .offset(filter_query.offset)
+        .limit(filter_query.limit)
+    )
+    if filters:
+        statement = statement.where(and_(*filters))
+    products = db.exec(statement).all()
+    products_data = [
+        ProductOutSchema(
+            id=product.id,
+            name=product.name,
+            slug=product.slug,
+            price=product.price,
+            in_stock=in_stock,
+        )
+        for product, in_stock in products
+    ]
+    return products_data
