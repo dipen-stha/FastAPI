@@ -93,5 +93,6 @@ class UserCart(BaseTimeStampSlugModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
     product_id: int = Field(foreign_key="products.id")
+    product: "Product" = Relationship(back_populates="user_carts")
     user: "User" = Relationship(back_populates="user_cart")
     quantity: int = Field()

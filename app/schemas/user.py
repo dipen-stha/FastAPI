@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.db.models import User
 from app.schemas.products import ProductOutSchema
@@ -133,7 +133,7 @@ class ProfileOut(BaseProfile):
 
 
 class BaseUserCart(BaseModel):
-    id: int | None
+    id: int | None = None
 
 
 class UserCartIn(BaseUserCart):
@@ -149,3 +149,8 @@ class UserCartOut(BaseUserCart):
 
     class Config:
         from_attributes = True
+
+
+class BaseFilter(BaseModel):
+    limit: int = Field(100, gt=0, le=100)
+    offset: int = Field(0, ge=0)

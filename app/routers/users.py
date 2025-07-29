@@ -1,7 +1,8 @@
 from typing import Annotated
 
 from sqlalchemy.exc import IntegrityError, NoResultFound
-from sqlmodel import select, Session
+from sqlalchemy.orm import selectinload
+from sqlmodel import func, select, Session
 from starlette.responses import JSONResponse
 
 from app.db import crud
@@ -12,9 +13,11 @@ from app.db.crud import (
     update_user_cart,
     update_user_profile,
 )
-from app.db.models.user import Role, User
+from app.db.models import Product
+from app.db.models.user import Role, User, UserCart
 from app.db.session import get_db
 from app.schemas.user import (
+    BaseFilter,
     PermissionIn,
     ProfileIn,
     ProfileInPatch,
@@ -22,6 +25,7 @@ from app.schemas.user import (
     RoleIn,
     RoleOut,
     UserCartIn,
+    UserCartOut,
     UserDetailSchema,
     UserOut,
     UserRoleLinkSchema,
@@ -29,7 +33,7 @@ from app.schemas.user import (
 )
 from app.services.auth import get_current_user
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import ResponseValidationError
 
@@ -158,7 +162,7 @@ async def update_profile(
     )
 
 
-@user_router.patch("/cart/create/")
+@user_router.post("/cart/create/")
 def user_cart_create(
     user_cart: UserCartIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -183,4 +187,64 @@ def user_cart_update(
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"error": "User with given ID found"},
+        )
+
+
+@user_router.get("/cart/get/all/")
+def fetch_all_user_carts(
+    db: Annotated[Session, Depends(get_db)],
+    filter_query: Annotated[BaseFilter, Query()],
+) -> JSONResponse:
+    try:
+        user_carts = db.exec(
+            select(UserCart)
+            .options(selectinload(UserCart.product), selectinload(UserCart.user))
+            .offset(filter_query.offset)
+            .limit(filter_query.limit)
+        ).all()
+        user_carts_data = [
+            UserCartOut.model_validate(user_cart).model_dump()
+            for user_cart in user_carts
+        ]
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"data": user_carts_data},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"There was an error - {e}"},
+        )
+
+
+@user_router.get("/cart/get/self/")
+def fetch_self_product_cart(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> JSONResponse:
+    try:
+        user_carts = db.exec(
+            select(UserCart)
+            .options(selectinload(UserCart.product), selectinload(UserCart.user))
+            .where(UserCart.user_id == current_user.id)
+        ).all()
+        total_price = db.exec(
+            select(func.sum(UserCart.quantity * Product.price))
+            .where(UserCart.user_id == current_user.id)
+            .join(Product)
+        ).one()
+        user_carts_data = [
+            UserCartOut.model_validate(user_cart).model_dump()
+            for user_cart in user_carts
+        ]
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "data": {"user_cart": user_carts_data, "total_price": total_price or 0}
+            },
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"There was an error - {e}"},
         )

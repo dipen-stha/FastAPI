@@ -19,7 +19,7 @@ class CustomAuthenticationMiddleware(BaseHTTPMiddleware):
         try:
             if any(
                 part in request.url.path.split("/")
-                for part in ["login", "logout", "docs", "openapi.json"]
+                for part in ["login", "logout", "docs", "openapi.json", "debug_toolbar"]
             ):
                 response = await call_next(request)
                 return response

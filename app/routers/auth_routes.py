@@ -40,7 +40,7 @@ def get_users_me(current_user: Annotated[User, Depends(auth.get_current_active_u
 
 
 @auth_router.post("/login/token/", response_model=Token)
-async def login(user_login: UserLogin, db: Annotated[Session, Depends(get_db)]):
+def login(user_login: UserLogin, db: Annotated[Session, Depends(get_db)]):
     try:
         user = auth.authenticate_user(user_login, db)
         if not user.is_active or user.is_archived:

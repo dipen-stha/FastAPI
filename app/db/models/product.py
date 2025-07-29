@@ -43,3 +43,4 @@ class Product(BaseTimeStampSlugModel, table=True):
         back_populates="products", link_model=CategoryProductPivot
     )
     price: int | None = Field(default=0)
+    user_carts: list["UserCart"] = Relationship(back_populates="product")

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import BaseModel
 
 
@@ -10,8 +8,7 @@ class BaseSchema(BaseModel):
 class BaseGetSchema(BaseSchema):
     id: int
     slug: str
-    created_at: datetime
-    updated_at: datetime
+    price: float
 
 
 class ProductInSchema(BaseSchema):
@@ -20,6 +17,9 @@ class ProductInSchema(BaseSchema):
 
 class ProductOutSchema(BaseGetSchema):
     pass
+
+    class Config:
+        from_attributes = True
 
 
 class CategoryInSchema(BaseSchema):

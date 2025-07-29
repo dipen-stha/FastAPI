@@ -1,3 +1,4 @@
+from pydantic_core import ValidationError
 from slugify import slugify
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import delete, select, Session
@@ -52,7 +53,8 @@ def create_user(db: Session, user: UserIn):
     user_data = User(**data)
     db.add(user_data)
     db.commit()
-    return user
+    db.refresh(user_data)
+    return UserOut.model_validate(user_data)
 
 
 def get_users(
@@ -178,12 +180,18 @@ async def update_user_profile(
 
 
 def create_user_cart(user_cart: UserCartIn, db: Session) -> UserCartOut:
-    user_cart_instance = UserCart(**user_cart.model_dump())
-    db.add(user_cart_instance)
-    db.commit()
-    db.refresh(user_cart_instance)
-    user_cart = UserCartOut.model_validate(user_cart_instance)
-    return user_cart
+    try:
+        user_cart_instance = UserCart(**user_cart.model_dump())
+        db.add(user_cart_instance)
+        db.commit()
+        db.refresh(user_cart_instance)
+        # import ipdb;ipdb.set_trace()
+        user_cart = UserCartOut.model_validate(user_cart_instance)
+        return user_cart
+    except ValidationError:
+        import ipdb
+
+        ipdb.set_trace()
 
 
 def update_user_cart(
