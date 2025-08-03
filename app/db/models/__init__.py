@@ -1,5 +1,6 @@
 from .product import *
 from .user import *
+from .base import *
 
 Product.model_rebuild()
 Category.model_rebuild()

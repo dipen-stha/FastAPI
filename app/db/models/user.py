@@ -1,10 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.db.models import BaseTimeStampSlugModel
-from app.utils.enum.users import GenderEnum
+from app.db.models.base import BaseTimeStampSlugModel, OrderProductLink
+from app.utils.enum.users import GenderEnum, OrderStatusEnum
 
 
 class UserRoleLink(SQLModel, table=True):
@@ -34,7 +34,7 @@ class User(SQLModel, table=True):
         back_populates="user", sa_relationship_kwargs={"uselist": False}
     )
     user_cart: list["UserCart"] or None = Relationship(back_populates="user")
-
+    user_orders: list["UserOrder"] = Relationship(back_populates="user")
 
 class RolePermissionLink(SQLModel, table=True):
     __tablename__ = "role_permission"
@@ -96,3 +96,20 @@ class UserCart(BaseTimeStampSlugModel, table=True):
     product: "Product" = Relationship(back_populates="user_carts")
     user: "User" = Relationship(back_populates="user_cart")
     quantity: int = Field()
+
+
+class UserOrder(SQLModel, table=True):
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    ordered_on: datetime = Field()
+    status: OrderStatusEnum = Field(
+        sa_column=Column(
+            Enum(OrderStatusEnum, name="order_status", create_type=False),
+        )
+    )
+    updated_at: datetime = Field(default=datetime.now)
+    user: User = Relationship(back_populates="user_orders")
+    products: list["Product"]  = Relationship(back_populates="orders", link_model=OrderProductLink)
+
+    __tablename__ = "user_orders"
