@@ -34,7 +34,7 @@ from app.schemas.user import (
     UserCartOut,
     UserIn,
     UserOut,
-    UserRoleLinkSchema,
+    UserRoleLinkSchema, UserOrderStats,
 )
 from app.utils.enum.users import OrderStatusEnum
 from app.utils.helpers import get_password_hash
@@ -335,3 +335,14 @@ def count_orders_status(db: Session):
         total=stats.total
     )
 
+def count_each_users_orders(db: Session):
+    statement = (
+        select(
+        User.id,
+        User.name,
+        func.count(UserOrder.id).label("orders_count"),
+    ).join(UserOrder, UserOrder.user_id == User.id)
+    .group_by(User.id, User.name)
+    )
+    user_stats=db.exec(statement)
+    return [UserOrderStats.model_validate(user_stat) for user_stat in user_stats]

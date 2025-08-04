@@ -168,3 +168,12 @@ class UserCartOut(BaseUserCart):
 
     class Config:
         from_attributes = True
+
+
+class UserOrderStats(BaseModel):
+    id: int
+    name: str
+    orders_count: int
+
+    class Config:
+        from_attributes = True
