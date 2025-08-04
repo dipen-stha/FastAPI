@@ -43,13 +43,13 @@ user_router = APIRouter(
 )
 
 
-@user_router.get("/list/")
+@user_router.get("/list/", tags=["User"])
 async def list_users(db: Annotated[Session, Depends(get_db)]) -> list[UserOut]:
     users = crud.get_users(db=db)
     return users
 
 
-@user_router.post("/permissions/create/")
+@user_router.post("/permissions/create/", tags=["Authorization"])
 async def create_permission(
     permission: PermissionIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -68,7 +68,7 @@ async def create_permission(
         )
 
 
-@user_router.post("/roles/create/")
+@user_router.post("/roles/create/", tags=["Authorization"])
 async def create_roles(
     role: RoleIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -82,14 +82,14 @@ async def create_roles(
         return JSONResponse(status_code=err.status_code, content={"error": err.detail})
 
 
-@user_router.get("/roles/get/", response_model=list[RoleOut])
+@user_router.get("/roles/get/", response_model=list[RoleOut], tags=["Authorization"])
 def fetch_roles(db: Annotated[Session, Depends(get_db)]):
     query = select(Role)
     roles = db.exec(query).all()
     return roles
 
 
-@user_router.post("/assign-role/")
+@user_router.post("/assign-role/", tags=["Authorization"])
 async def assign_roles(
     user_role: UserRoleLinkSchema, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -109,7 +109,7 @@ async def assign_roles(
         )
 
 
-@user_router.get("/user-roles/{user_id}/", response_model=UserRoleSchema)
+@user_router.get("/user-roles/{user_id}/", response_model=UserRoleSchema, tags=["Authorization"])
 def user_roles(
     user_id: int, db: Annotated[Session, Depends(get_db)]
 ) -> UserRoleSchema | JSONResponse:
@@ -128,7 +128,7 @@ def user_roles(
         )
 
 
-@user_router.get("/self/me/", response_model=UserDetailSchema)
+@user_router.get("/self/me/", response_model=UserDetailSchema, tags=["User"])
 async def get_self(
     request: Request, current_user: Annotated[User, Depends(get_current_user)]
 ) -> JSONResponse:
@@ -142,7 +142,7 @@ async def get_self(
         )
 
 
-@user_router.post("/profile/create/")
+@user_router.post("/profile/create/", tags=["User"])
 async def create_profile(
     profile: ProfileIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -154,7 +154,7 @@ async def create_profile(
     )
 
 
-@user_router.patch("/profile/update/{profile_id}/")
+@user_router.patch("/profile/update/{profile_id}/", tags=["User"])
 async def update_profile(
     profile_id: int, profile: ProfileInPatch, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -166,7 +166,7 @@ async def update_profile(
     )
 
 
-@user_router.post("/cart/create/")
+@user_router.post("/cart/create/", tags=["Cart"])
 def user_cart_create(
     user_cart: UserCartIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -177,7 +177,7 @@ def user_cart_create(
     )
 
 
-@user_router.patch("/cart/update/{user_cart_id}/")
+@user_router.patch("/cart/update/{user_cart_id}/", tags=["Cart"])
 def user_cart_update(
     user_cart_id: int, user_cart: UserCartIn, db: Annotated[Session, Depends(get_db)]
 ) -> JSONResponse:
@@ -194,7 +194,7 @@ def user_cart_update(
         )
 
 
-@user_router.get("/cart/get/all/")
+@user_router.get("/cart/get/all/", tags=["Cart"])
 def fetch_all_user_carts(
     db: Annotated[Session, Depends(get_db)],
     filter_query: Annotated[BaseFilter, Query()],
@@ -221,7 +221,7 @@ def fetch_all_user_carts(
         )
 
 
-@user_router.get("/cart/get/self/")
+@user_router.get("/cart/get/self/", tags=["Cart"])
 def fetch_self_product_cart(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],

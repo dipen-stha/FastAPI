@@ -22,7 +22,7 @@ can_view_all = get_required_permissions(["can-get-all"])
 can_update_all = get_required_permissions(["can-update-all"])
 
 
-@product_router.post("/categories/create/", response_model=CategoryOutSchema)
+@product_router.post("/categories/create/", response_model=CategoryOutSchema, tags=["Product"])
 def create_category(
     category: CategoryInSchema, db: Annotated[Session, Depends(get_db)]
 ) -> Category:
@@ -35,7 +35,7 @@ def create_category(
     return category
 
 
-@product_router.get("/categories/get/", response_model=list[CategoryOutSchema])
+@product_router.get("/categories/get/", response_model=list[CategoryOutSchema], tags=["Product"])
 async def get_categories(
     db: Annotated[Session, Depends(get_db)],
     _user: Annotated[User, Depends(can_view_all)],
@@ -46,7 +46,7 @@ async def get_categories(
 
 
 @product_router.put(
-    "/categories/update/{category_id}/", response_model=CategoryOutSchema
+    "/categories/update/{category_id}/", response_model=CategoryOutSchema, tags=["Product"]
 )
 async def update_category(
     category_id: int,
@@ -76,7 +76,7 @@ async def update_category(
         )
 
 
-@product_router.get("/get/all/")
+@product_router.get("/get/all/", tags=["Product"])
 def fetch_all(
     db: Annotated[Session, Depends(get_db)],
     filter_query: Annotated[Query, Depends(ProductFilter)],
