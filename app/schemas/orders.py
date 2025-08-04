@@ -39,3 +39,11 @@ class UserOrderOut(BaseModel):
             payment_method=user_order.payment_method,
             payment_status=user_order.payment_status,
         )
+
+
+class OrderStatSchema(BaseModel):
+    received_count: int
+    canceled_count: int
+    delivery_count: int
+    on_the_way_count: int
+    total: int

@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic_core import ValidationError
 from slugify import slugify
+from sqlalchemy import func
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, case, delete, select, Session
@@ -19,7 +20,7 @@ from app.db.models.user import (
     UserRoleLink,
 )
 from app.schemas.filters import OrderFilter, ProductFilter
-from app.schemas.orders import UserOrderIn, UserOrderOut
+from app.schemas.orders import UserOrderIn, UserOrderOut, OrderStatSchema
 from app.schemas.products import ProductOutSchema
 from app.schemas.user import (
     PermissionIn,
@@ -316,3 +317,21 @@ def create_order(user_order: UserOrderIn, db: Session) -> UserOrderOut:
     db.commit()
     db.refresh(user_order_instance)
     return UserOrderOut.from_orm(user_order_instance)
+
+def count_orders_status(db: Session):
+    statement = select(
+        func.count(case((UserOrder.status == OrderStatusEnum.RECEIVED, 1), else_=None)).label("received_count"),
+        func.count(case((UserOrder.status == OrderStatusEnum.CANCELLED, 1), else_=None)).label("cancelled_count"),
+        func.count(case((UserOrder.status == OrderStatusEnum.DELIVERED, 1), else_=None)).label("delivery_count"),
+        func.count(case((UserOrder.status == OrderStatusEnum.ON_THE_WAY, 1), else_=None)).label("on_the_way_count"),
+        func.count(UserOrder.id).label("total")
+    )
+    stats = db.exec(statement).first()
+    return OrderStatSchema(
+        received_count=stats.received_count,
+        canceled_count=stats.cancelled_count,
+        delivery_count=stats.delivery_count,
+        on_the_way_count=stats.on_the_way_count,
+        total=stats.total
+    )
+

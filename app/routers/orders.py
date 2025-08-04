@@ -3,10 +3,10 @@ from typing import Annotated
 from sqlmodel import Session
 from starlette.responses import JSONResponse
 
-from app.db.crud import create_order, get_all_user_orders, get_user_orders_by_id
+from app.db.crud import create_order, get_all_user_orders, get_user_orders_by_id, count_orders_status
 from app.db.session import get_db
 from app.schemas.filters import OrderFilter
-from app.schemas.orders import UserOrderIn, UserOrderOut
+from app.schemas.orders import UserOrderIn, UserOrderOut, OrderStatSchema
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
@@ -56,3 +56,12 @@ def create_user_order(db: Annotated[Session, Depends(get_db)], data: UserOrderIn
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)}
         )
+
+
+@order_router.get("/stats/", tags=["User Order"], response_model=OrderStatSchema)
+def get_order_stats(db: Annotated[Session, Depends(get_db)]):
+    try:
+        stats_data = count_orders_status(db)
+        return stats_data
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})
