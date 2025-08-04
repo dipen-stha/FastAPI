@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import Annotated
 
 from pydantic_core import ValidationError
 from slugify import slugify
 from sqlalchemy.exc import NoResultFound
-from sqlmodel import delete, select, Session, case, and_
+from sqlalchemy.orm import selectinload
+from sqlmodel import and_, case, delete, select, Session
 
 from app.db.models import Product
 from app.db.models.user import (
@@ -13,9 +15,11 @@ from app.db.models.user import (
     RolePermissionLink,
     User,
     UserCart,
+    UserOrder,
     UserRoleLink,
 )
-from app.schemas.filters import ProductFilter
+from app.schemas.filters import OrderFilter, ProductFilter
+from app.schemas.orders import UserOrderIn, UserOrderOut
 from app.schemas.products import ProductOutSchema
 from app.schemas.user import (
     PermissionIn,
@@ -31,10 +35,11 @@ from app.schemas.user import (
     UserOut,
     UserRoleLinkSchema,
 )
+from app.utils.enum.users import OrderStatusEnum
 from app.utils.helpers import get_password_hash
 from app.utils.model_utilty import update_model_instance
 
-from fastapi import HTTPException, Query, Depends
+from fastapi import Depends, HTTPException, Query
 
 
 def validate_username(db: Session, username: str):
@@ -45,9 +50,13 @@ def validate_username(db: Session, username: str):
 
 
 def get_user_by_username(db: Session, username: str) -> User | None:
-    statement = select(User).where(User.username == username)
+    statement = (
+        select(User, Profile)
+        .join(Profile, isouter=True)
+        .where(User.username == username)
+    )
     user = db.exec(statement).one()
-    return user
+    return user[0]
 
 
 def create_user(db: Session, user: UserIn):
@@ -250,3 +259,60 @@ def get_all_products(
         for product, in_stock in products
     ]
     return products_data
+
+
+def get_all_user_orders(db: Session, filter_query: OrderFilter) -> list[UserOrderOut]:
+    filters = []
+    status_filter = filter_query.status
+    payment_method_filter = filter_query.payment_method
+    payment_status_filter = filter_query.payment_status
+    order_on_filter = filter_query.ordered_on
+    product_name_filter = filter_query.product
+
+    if status_filter:
+        filters.append(UserOrder.status == status_filter)
+    if payment_status_filter:
+        filters.append(UserOrder.payment_status == payment_status_filter)
+    if payment_method_filter:
+        filters.append(UserOrder.payment_method == payment_method_filter)
+    if order_on_filter:
+        filters.append(UserOrder.ordered_on == order_on_filter)
+    if product_name_filter:
+        filters.append(Product.name == product_name_filter)
+
+    statement = (
+        select(UserOrder)
+        .options(selectinload(UserOrder.user), selectinload(UserOrder.products))
+        .offset(filter_query.offset)
+        .limit(filter_query.limit)
+    )
+    if filters:
+        statement.where(and_(*filters))
+    user_orders = db.exec(statement).all()
+    user_orders_data = [UserOrderOut.model_validate(item) for item in user_orders]
+    return user_orders_data
+
+
+def get_user_orders_by_id(user_id: int, db: Session) -> list[UserOrderOut]:
+    statement = (
+        select(UserOrder)
+        .options(selectinload(UserOrder.user), selectinload(UserOrder.products))
+        .where(UserOrder.user_id == user_id)
+    )
+    user_orders = db.exec(statement).all()
+    user_orders_data = [UserOrderOut.model_validate(item) for item in user_orders]
+    return user_orders_data
+
+
+def create_order(user_order: UserOrderIn, db: Session) -> UserOrderOut:
+    user_order_data = user_order.model_dump()
+    product_ids = user_order_data.pop("product_ids")
+    products = db.exec(select(Product).where(Product.id.in_(product_ids))).all()
+    user_order_data["ordered_on"] = datetime.now()
+    user_order_data["status"] = OrderStatusEnum.RECEIVED.value
+    user_order_instance = UserOrder(**user_order_data)
+    user_order_instance.products = products
+    db.add(user_order_instance)
+    db.commit()
+    db.refresh(user_order_instance)
+    return UserOrderOut.from_orm(user_order_instance)

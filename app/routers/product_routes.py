@@ -1,12 +1,11 @@
 from typing import Annotated
 
 from sqlmodel import select, Session
-from sqlalchemy.orm import selectinload
 from starlette import status
 from starlette.responses import JSONResponse
 
 from app.db.crud import get_all_products
-from app.db.models.product import Category, Product
+from app.db.models.product import Category
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.filters import ProductFilter
@@ -79,7 +78,8 @@ async def update_category(
 
 @product_router.get("/get/all/")
 def fetch_all(
-    db: Annotated[Session, Depends(get_db)], filter_query: Annotated[Query, Depends(ProductFilter)]
+    db: Annotated[Session, Depends(get_db)],
+    filter_query: Annotated[Query, Depends(ProductFilter)],
 ) -> JSONResponse:
     try:
         products = get_all_products(db, filter_query)

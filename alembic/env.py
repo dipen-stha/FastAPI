@@ -8,6 +8,7 @@ from app.db.models import SQLModel
 from alembic import context
 
 from app.config import settings
+from app.db.models import user, product, base
 
 
 def db_url():

@@ -17,7 +17,6 @@ class BaseTimeStampSlugModel(SQLModel):
     #     super().__init__()
 
 
-
 class OrderProductLink(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)

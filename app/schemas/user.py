@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.db.models import User
 from app.schemas.products import ProductOutSchema
@@ -90,30 +90,49 @@ class UserRoleSchema(BaseUser):
 
 class UserDetailSchema(UserOut):
     profile: "BaseProfile"
-    permissions: list[str]
+    permissions: list[str] | None = None
 
     @staticmethod
     def from_orm(user: User) -> "UserDetailSchema":
-        permissions = {
-            permission.name for role in user.roles for permission in role.permissions
-        }
-        return UserDetailSchema(
-            id=user.id,
-            name=user.name,
-            username=user.username,
-            email=user.email,
-            age=user.age,
-            is_active=user.is_active,
-            is_archived=user.is_archived,
-            profile=user.profile,
-            permissions=list(permissions),
-        )
+        profile = BaseProfile.model_validate(user.profile)
+
+        try:
+            permissions = {
+                permission.name
+                for role in user.roles
+                for permission in role.permissions
+            }
+            return UserDetailSchema(
+                id=user.id,
+                name=user.name,
+                username=user.username,
+                email=user.email,
+                age=user.age,
+                is_active=user.is_active,
+                is_archived=user.is_archived,
+                profile=profile,
+                permissions=list(permissions),
+            )
+        except AttributeError:
+            return UserDetailSchema(
+                id=user.id,
+                name=user.name,
+                username=user.username,
+                email=user.email,
+                age=user.age,
+                is_active=user.is_active,
+                is_archived=user.is_archived,
+                profile=profile,
+            )
 
 
 class BaseProfile(BaseModel):
     gender: GenderEnum | None
     dob: date | None
     address: str | None
+
+    class Config:
+        from_attributes = True
 
 
 class ProfileIn(BaseProfile):

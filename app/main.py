@@ -1,6 +1,7 @@
 from app.config import settings
 from app.db.init_db import init_db
 from app.routers.auth_routes import auth_router
+from app.routers.orders import order_router
 from app.routers.product_routes import product_router
 from app.routers.users import user_router
 
@@ -21,7 +22,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allomethods=["*"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 # app.add_middleware(ProfilerMiddleware, profiling_enabled=True)
@@ -31,5 +32,7 @@ app.add_middleware(GZipMiddleware, compresslevel=5)
 app.include_router(auth_router)
 app.include_router(product_router)
 app.include_router(user_router)
+
+app.include_router(order_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

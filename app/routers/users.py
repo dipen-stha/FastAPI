@@ -16,6 +16,7 @@ from app.db.crud import (
 from app.db.models import Product
 from app.db.models.user import Role, User, UserCart
 from app.db.session import get_db
+from app.schemas.filters import BaseFilter
 from app.schemas.user import (
     PermissionIn,
     ProfileIn,
@@ -30,7 +31,6 @@ from app.schemas.user import (
     UserRoleLinkSchema,
     UserRoleSchema,
 )
-from app.schemas.filters import BaseFilter
 from app.services.auth import get_current_user
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -128,14 +128,18 @@ def user_roles(
         )
 
 
-@user_router.get("/self/me/")
+@user_router.get("/self/me/", response_model=UserDetailSchema)
 async def get_self(
     request: Request, current_user: Annotated[User, Depends(get_current_user)]
 ) -> JSONResponse:
-    user_details = UserDetailSchema.from_orm(current_user)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK, content={**user_details.model_dump()}
-    )
+    try:
+        user_details = UserDetailSchema.from_orm(current_user)
+        return user_details
+    except Exception as err:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": str(err)},
+        )
 
 
 @user_router.post("/profile/create/")

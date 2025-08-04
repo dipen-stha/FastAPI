@@ -7,7 +7,7 @@ class BaseSchema(BaseModel):
 
 class BaseGetSchema(BaseSchema):
     id: int
-    slug: str
+    slug: str | None
     price: float
 
 
@@ -16,7 +16,7 @@ class ProductInSchema(BaseSchema):
 
 
 class ProductOutSchema(BaseGetSchema):
-    in_stock: bool | None
+    in_stock: bool | None = None
 
     class Config:
         from_attributes = True
