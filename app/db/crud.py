@@ -34,7 +34,8 @@ from app.schemas.user import (
     UserCartOut,
     UserIn,
     UserOut,
-    UserRoleLinkSchema, UserOrderStats,
+    UserRoleLinkSchema,
+    UserOrderStats,
 )
 from app.utils.enum.users import OrderStatusEnum
 from app.utils.helpers import get_password_hash
@@ -316,15 +317,24 @@ def create_order(user_order: UserOrderIn, db: Session) -> UserOrderOut:
     db.add(user_order_instance)
     db.commit()
     db.refresh(user_order_instance)
-    return UserOrderOut.from_orm(user_order_instance)
+    return user_order_instance
+
 
 def count_orders_status(db: Session):
     statement = select(
-        func.count(case((UserOrder.status == OrderStatusEnum.RECEIVED, 1), else_=None)).label("received_count"),
-        func.count(case((UserOrder.status == OrderStatusEnum.CANCELLED, 1), else_=None)).label("cancelled_count"),
-        func.count(case((UserOrder.status == OrderStatusEnum.DELIVERED, 1), else_=None)).label("delivery_count"),
-        func.count(case((UserOrder.status == OrderStatusEnum.ON_THE_WAY, 1), else_=None)).label("on_the_way_count"),
-        func.count(UserOrder.id).label("total")
+        func.count(
+            case((UserOrder.status == OrderStatusEnum.RECEIVED, 1), else_=None)
+        ).label("received_count"),
+        func.count(
+            case((UserOrder.status == OrderStatusEnum.CANCELLED, 1), else_=None)
+        ).label("cancelled_count"),
+        func.count(
+            case((UserOrder.status == OrderStatusEnum.DELIVERED, 1), else_=None)
+        ).label("delivery_count"),
+        func.count(
+            case((UserOrder.status == OrderStatusEnum.ON_THE_WAY, 1), else_=None)
+        ).label("on_the_way_count"),
+        func.count(UserOrder.id).label("total"),
     )
     stats = db.exec(statement).first()
     return OrderStatSchema(
@@ -332,17 +342,19 @@ def count_orders_status(db: Session):
         canceled_count=stats.cancelled_count,
         delivery_count=stats.delivery_count,
         on_the_way_count=stats.on_the_way_count,
-        total=stats.total
+        total=stats.total,
     )
+
 
 def count_each_users_orders(db: Session):
     statement = (
         select(
-        User.id,
-        User.name,
-        func.count(UserOrder.id).label("orders_count"),
-    ).join(UserOrder, UserOrder.user_id == User.id)
-    .group_by(User.id, User.name)
+            User.id,
+            User.name,
+            func.count(UserOrder.id).label("orders_count"),
+        )
+        .join(UserOrder, UserOrder.user_id == User.id)
+        .group_by(User.id, User.name)
     )
-    user_stats=db.exec(statement)
+    user_stats = db.exec(statement)
     return [UserOrderStats.model_validate(user_stat) for user_stat in user_stats]

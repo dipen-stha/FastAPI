@@ -3,8 +3,13 @@ from typing import Annotated
 from sqlmodel import Session
 from starlette.responses import JSONResponse
 
-from app.db.crud import create_order, get_all_user_orders, get_user_orders_by_id, count_orders_status, \
-    count_each_users_orders
+from app.db.crud import (
+    create_order,
+    get_all_user_orders,
+    get_user_orders_by_id,
+    count_orders_status,
+    count_each_users_orders,
+)
 from app.db.session import get_db
 from app.schemas.filters import OrderFilter
 from app.schemas.orders import UserOrderIn, UserOrderOut, OrderStatSchema
@@ -12,6 +17,7 @@ from app.schemas.orders import UserOrderIn, UserOrderOut, OrderStatSchema
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.schemas.user import UserOrderStats
+from app.services.celery.tasks import send_email_for_order
 
 order_router = APIRouter(prefix="/orders")
 
@@ -50,9 +56,10 @@ def fetch_user_order(
 
 
 @order_router.post("/create/", tags=["User Order"], response_model=UserOrderOut)
-def create_user_order(db: Annotated[Session, Depends(get_db)], data: UserOrderIn):
+async def create_user_order(db: Annotated[Session, Depends(get_db)], data: UserOrderIn):
     try:
         created_instance = create_order(data, db)
+        await send_email_for_order(created_instance.user, created_instance)
         return created_instance
     except Exception as e:
         return JSONResponse(
@@ -66,12 +73,19 @@ def get_order_stats(db: Annotated[Session, Depends(get_db)]):
         stats_data = count_orders_status(db)
         return stats_data
     except Exception as e:
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)}
+        )
 
-@order_router.get("/user-stats/", tags=["User Order"], response_model=list[UserOrderStats])
+
+@order_router.get(
+    "/user-stats/", tags=["User Order"], response_model=list[UserOrderStats]
+)
 def get_user_order_stats(db: Annotated[Session, Depends(get_db)]):
     try:
         user_stats = count_each_users_orders(db)
         return user_stats
     except Exception as e:
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)})
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": str(e)}
+        )

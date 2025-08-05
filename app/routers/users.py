@@ -109,7 +109,9 @@ async def assign_roles(
         )
 
 
-@user_router.get("/user-roles/{user_id}/", response_model=UserRoleSchema, tags=["Authorization"])
+@user_router.get(
+    "/user-roles/{user_id}/", response_model=UserRoleSchema, tags=["Authorization"]
+)
 def user_roles(
     user_id: int, db: Annotated[Session, Depends(get_db)]
 ) -> UserRoleSchema | JSONResponse:
